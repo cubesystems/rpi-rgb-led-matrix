@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <iostream>
 
 #include <map>
 
@@ -219,6 +220,7 @@ private:
 
 
 
+
 class VerticalMapper : public PixelMapper {
 public:
   VerticalMapper() {}
@@ -283,6 +285,98 @@ private:
   int parallel_;
 };
 
+class CustomLayoutMapper : public PixelMapper {
+private:
+//    int led_chain = 18;
+//    int led_parallel = 2;
+//    int actual_led_chain = 12;
+//    int actual_led_parallel = 3;
+
+    int led_chain;
+    int led_parallel;
+
+    int displayable_led_chain = 12;
+    int displayable_led_parallel = 2;
+
+public:
+  CustomLayoutMapper() {}
+
+  virtual const char *GetName() const { return "CustomLayout"; }
+
+  virtual bool SetParameters(int chain, int parallel, const char *param) {
+//    if (chain != actual_led_chain || parallel != actual_led_parallel) {
+//      fprintf(stderr, "CustomLayoutMapper requires exactly --led-chain=12 and --led-parallel=3.\n");
+//      return false;
+//    }
+
+    led_chain = chain;
+    led_parallel = parallel;
+
+    return true;
+  }
+
+  virtual bool GetSizeMapping(int matrix_width, int matrix_height,
+                              int *visible_width, int *visible_height) const {
+
+    const int led_rows = matrix_height / led_parallel;
+    const int led_cols = matrix_width / led_chain;
+
+    *visible_width = led_chain * led_rows;
+    *visible_height = displayable_led_parallel * led_cols;
+    return true;
+  }
+
+  virtual void MapVisibleToMatrix(int matrix_width, int matrix_height,
+                                  int x, int y,
+                                  int *matrix_x, int *matrix_y) const {
+
+    const int led_rows = matrix_height / led_parallel;
+    const int led_cols = matrix_width / led_chain;
+    const int chain_index = y / led_cols;
+    const int panel_index = x / led_rows;
+
+    int x_offset = 0;
+    int y_offset = 0;
+
+    if(panel_index < 12) {
+      x_offset = (led_cols * 6);
+    }
+    else if(chain_index == 0 && panel_index > 11) {
+      y_offset = led_cols;
+
+      if(panel_index == 17) {
+        x_offset = -(led_cols * 5);
+      }
+
+      if(panel_index == 16) {
+        x_offset = -(led_cols * 3);
+      }
+
+      if(panel_index == 15) {
+        x_offset = -(led_cols * 1);
+      }
+
+      if(panel_index == 14) {
+        x_offset = (led_cols * 1);
+      }
+
+      if(panel_index == 13) {
+        x_offset = (led_cols * 3);
+      }
+
+      if(panel_index == 12) {
+        x_offset = (led_cols * 5);
+      }
+    }
+    else if(chain_index == 1 && panel_index > 11) {
+      x_offset = -(led_cols * 6);
+      y_offset = led_rows;
+    }
+
+    *matrix_x = led_cols * (panel_index + chain_index + 1) - y - 1 + x_offset;
+    *matrix_y = x - (led_rows * panel_index) + (led_rows * ( chain_index )) + y_offset;
+  }
+};
 
 typedef std::map<std::string, PixelMapper*> MapperByName;
 static void RegisterPixelMapperInternal(MapperByName *registry,
@@ -302,6 +396,7 @@ static MapperByName *CreateMapperMap() {
   RegisterPixelMapperInternal(result, new UArrangementMapper());
   RegisterPixelMapperInternal(result, new VerticalMapper());
   RegisterPixelMapperInternal(result, new MirrorPixelMapper());
+  RegisterPixelMapperInternal(result, new CustomLayoutMapper());
   return result;
 }
 
